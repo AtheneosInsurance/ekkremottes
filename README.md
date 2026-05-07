@@ -1,2 +1,2 @@
-# ekkremottes. File updated try again in 2 m;inutes
+# ekkremottes. File updated try again in 2 minutes
 Ticketing
