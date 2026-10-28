@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.10.28b</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.10.28c</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -902,7 +902,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.10.28b</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.10.28c</div>
     </div>
   </nav>
 
@@ -2011,9 +2011,8 @@ async function importAgentsFromTickets() {
 
   try {
     const agentField = SP_FIELDS.agent;
-    const createdField = 'Created';
-    // Παίρνουμε τα 30 πιο πρόσφατα tickets (ταξινομημένα φθίνουσα)
-    const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items?$expand=fields($select=${agentField},${createdField})&$top=30&$orderby=fields/Created desc`;
+    // Παίρνουμε τα 30 πιο πρόσφατα tickets — $orderby=id desc (πάντα indexed)
+    const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items?$expand=fields($select=${agentField})&$top=30&$orderby=id desc`;
     const res = await callGraph(url);
 
     const agentsFromTickets = new Set();
