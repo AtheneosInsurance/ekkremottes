@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.10.29c</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.10.29d</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -902,7 +902,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.10.29c</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.10.29d</div>
     </div>
   </nav>
 
@@ -1746,7 +1746,7 @@ let APP_LISTS = {
   types:     ['Αίτημα','Εντολή Ανάθεσης','Ζημιά','Νέο Ασφαλιστήριο','Νέος Πελάτης','Νέος Συνεργάτης','Παράπονο','Προσθήκη Πράξης','Προσφορά'].sort((a,b)=>a.localeCompare(b,'el')),
   companies: ['AIG','ALC','Allianz','Ατλαντική','Axa Global','BUPA Global','Ergo','Eurolife','Ευρώπη','Generali','Groupama','Interamerican','Interasco IMG','NN'].sort((a,b)=>a.localeCompare(b,'el')),
   branches:  ['Αστικής Ευθύνης','Ατυχημάτων','Αυτοκινήτων','Εγγυήσεων','Επενδύσεως','Ζωής','Μεταφορών','Νομικής Προστασίας','Οδικής','Πληρωμάτων','Πυρός','Σκαφών','Συντάξεων','Ταξιδίου','Υγείας'].sort((a,b)=>a.localeCompare(b,'el')),
-  agents:    []
+  agents:    ['ΒΕΡΡΟΙΟΠΟΥΛΟΣ','ΓΕΩΡΓΑΤΟΣ ΔΙΟΝΥΣΗΣ','ΕΔΡΑ','HOWDEN','ΚΑΡΑΓΚΟΥΝΗ ΜΑΡΙΑ','ΚΟΥΝΟΥΠΑ ΛΥΔΙΑ','ΟΙΚΟΝΟΜΟΥ ΕΛΕΝΗ','PACIFIC -ΤΖΟΡΤΖΗΣ','SMARTCARE','ΣΤΕΦΑΝΙΔΟΥ ΞΑΝΘΙΠΠΗ'].sort((a,b)=>a.localeCompare(b,'el'))
 };
 
 // ══════════════════════════════════════════════
@@ -1981,7 +1981,9 @@ async function fetchSettingsItems() {
   );
   settingsCache = { types: [], companies: [], branches: [], agents: [] };
   (data.value || []).forEach(item => {
-    const cat = (item.fields.Category || '').toLowerCase();
+    // Το Category field μπορεί να έχει διαφορετικό internal name — δοκιμάζουμε και τα δύο
+    const cat = (item.fields.Category || item.fields.Category0 || item.fields['Category_x0020_'] || '').toLowerCase().trim();
+    console.log('[Settings] id:', item.id, 'cat:', cat, 'fields:', JSON.stringify(item.fields));
     if (settingsCache[cat] !== undefined) {
       settingsCache[cat].push({
         id: item.id,
@@ -3706,11 +3708,13 @@ function showNewForm() {
   document.getElementById('form-title').textContent = currentLang === 'el' ? 'Νέα Εκκρεμότητα' : 'New Ticket';
   document.getElementById('btn-delete').style.display = 'none';
   const saveLbl = document.getElementById('btn-save-lbl'); if (saveLbl) saveLbl.textContent = currentLang === 'el' ? 'Αποθήκευση' : 'Save';
+  // Γεμίζουμε τα dropdowns πριν το clearForm για να μείνουν τα options
+  populateAllDropdowns();
   clearForm();
   // Set default responsible to current user full name
   if (currentUser) {
-    const name = currentUser.displayName || 
-                 `${currentUser.givenName || ''} ${currentUser.surname || ''}`.trim() || 
+    const name = currentUser.displayName ||
+                 `${currentUser.givenName || ''} ${currentUser.surname || ''}`.trim() ||
                  currentUser.givenName || '';
     document.getElementById('f-responsible').value = name;
   }
