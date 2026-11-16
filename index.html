@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.16e</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.16f</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.16e</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.16f</div>
     </div>
   </nav>
 
@@ -1769,6 +1769,7 @@ let selectedFiles = [];
 let listId = null;
 let siteId = null;
 let settingsListId = null;
+let settingsCommsListId = null; // EkkremottesComms list
 
 // ── Default lists (fallback αν δεν υπάρχει SharePoint λίστα) ──
 let APP_LISTS = {
@@ -3877,6 +3878,29 @@ const BRANCH_EMAILS = {
   '':                   'p.atheneos@atheneosbrokers.gr,e.economou@atheneosbrokers.gr,f.xaritopoulou@atheneosbrokers.gr,dimitris.atheneos@atheneosbrokers.gr',
 };
 
+async function saveCommLog(ticket, eventType, to, subject, sentBy) {
+  if (!settingsCommsListId) return; // αν δεν έχει δημιουργηθεί ακόμα η list
+  try {
+    await callGraph(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${settingsCommsListId}/items`,
+      'POST',
+      { fields: {
+        Title:      ticket.id,
+        TicketId:   String(ticket.id),
+        EventType:  eventType,
+        Recipient:  to,
+        SentBy:     sentBy,
+        Subject:    subject,
+        SentAt:     new Date().toISOString(),
+        Client:     ticket.client || '',
+        Branch:     ticket.branch || '',
+      }}
+    );
+  } catch(e) {
+    console.warn('saveCommLog error (non-blocking):', e.message);
+  }
+}
+
 async function notifyBranch(ticket, eventType) {
   const to = BRANCH_EMAILS[ticket.branch || ''] || BRANCH_EMAILS[''];
   const ticketUrl = `https://atheneosinsurance.github.io/ekkremottes/`;
@@ -3926,6 +3950,9 @@ async function notifyBranch(ticket, eventType) {
       saveToSentItems: false,
     });
     console.log(`notifyBranch [${eventType}] sent to ${to}`);
+    // Αποθήκευση log επικοινωνίας
+    const sentBy = currentUser ? (currentUser.displayName || currentUser.givenName || '') : '';
+    await saveCommLog(ticket, eventType, to, subject, sentBy);
   } catch(e) {
     console.warn('notifyBranch error (non-blocking):', e.message);
   }
@@ -3971,11 +3998,18 @@ async function saveTicket() {
 
   try {
     if (editingTicketId) {
+      const prevTicket = tickets.find(t => t.id === editingTicketId);
+      const prevResponsible = prevTicket ? prevTicket.responsible : '';
       const pFields = await buildFieldsWithPerson(data);
       await callGraph(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items/${editingTicketId}/fields`, 'PATCH', pFields);
       const idx = tickets.findIndex(t => t.id === editingTicketId);
       if (idx >= 0) tickets[idx] = { ...tickets[idx], ...data };
       notify(currentLang==='el'?'Ενημερώθηκε επιτυχώς':'Updated successfully','success');
+      // Ειδοποίηση αν άλλαξε ο υπεύθυνος
+      if (data.responsible && data.responsible !== prevResponsible) {
+        const updatedTicket = { ...prevTicket, ...data };
+        notifyBranch(updatedTicket, 'taken').catch(e => console.warn('notify taken:', e));
+      }
       showDetail(editingTicketId);
     } else {
       const cFields = await buildFieldsWithPerson(data);
@@ -3984,8 +4018,10 @@ async function saveTicket() {
       for (const file of selectedFiles) {
         try { await uploadAttachment(newId, file); } catch(e) { console.warn('attach fail',e); }
       }
-      tickets.unshift({ id: newId, ...data, created: new Date().toISOString(), modified: new Date().toISOString() });
+      const newTicket = { id: newId, ...data, created: new Date().toISOString(), modified: new Date().toISOString() };
+      tickets.unshift(newTicket);
       notify(currentLang==='el'?'Δημιουργήθηκε επιτυχώς':'Created successfully','success');
+      notifyBranch(newTicket, 'new').catch(e => console.warn('notify new:', e));
       showView('list');
     }
     updateBadges();
