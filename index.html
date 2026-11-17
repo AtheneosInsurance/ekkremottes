@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18a</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18b</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18a</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18b</div>
     </div>
   </nav>
 
@@ -3939,7 +3939,7 @@ async function notifyBranch(ticket, eventType) {
   try {
     // Αποστολή μέσω Microsoft Graph API (/me/sendMail)
     const toList = to.split(',').map(e => ({ emailAddress: { address: e.trim() } }));
-    await callGraph('https://graph.microsoft.com/v1.0/me/sendMail', 'POST', {
+    await callGraph('https://graph.microsoft.com/v1.0/users/ticket@atheneosbrokers.gr/sendMail', 'POST', {
       message: {
         subject,
         body: { contentType: 'HTML', content: body },
