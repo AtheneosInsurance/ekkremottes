@@ -4128,6 +4128,8 @@ async function markEmailTaken(ticket, responsibleName) {
 
   // Αποκωδικοποίηση URL encoding που μπορεί να υπάρχει στο msgid
   const decodedMsgId = decodeURIComponent(ticket.internetMsgId);
+  console.log('markEmailTaken raw msgid:', ticket.internetMsgId);
+  console.log('markEmailTaken decoded msgid:', decodedMsgId);
   const category = `Ανέλαβε: ${responsibleName}`;
 
   // Βοηθητική: βρίσκει και σημαίνει το email σε ένα mailbox
