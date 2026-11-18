@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18h</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18i</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18h</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18i</div>
     </div>
   </nav>
 
@@ -1065,6 +1065,7 @@
         </button>
         <div style="flex:1">
           <h2 id="detail-title"></h2>
+          <div id="detail-subtitle" style="font-size:13px;color:var(--text2);margin-top:2px;margin-bottom:4px"></div>
           <div class="detail-meta" id="detail-meta"></div>
         </div>
         <div class="header-actions">
@@ -1101,6 +1102,10 @@
           <div class="form-group">
             <label data-el="lbl-client">Πελάτης <span class="req">*</span></label>
             <input class="form-input" id="f-client" type="text" placeholder="Ονοματεπώνυμο ή Επωνυμία">
+          </div>
+          <div class="form-group">
+            <label>Θέμα</label>
+            <input class="form-input" id="f-subject" type="text" placeholder="Σύντομη περιγραφή εκκρεμότητας">
           </div>
           <div class="form-group">
             <label data-el="lbl-file">Αρ. Φακέλου</label>
@@ -2388,6 +2393,7 @@ const SP_FIELDS = {
   openingSent:       'OpeningSent',
   updateSent:        'UpdateSent',
   completionSent:    'CompletionSent',
+  subject:           'subject',
   contactType:       'ContactType',
   contactEmail:      'ContactEmail',
   contactPhone:      'ContactPhone',
@@ -2468,6 +2474,7 @@ function mapItem(item) {
     id: item.id,
     etag: item.etag,
     client:      getF(SP_FIELDS.client),
+    subject:     getF(SP_FIELDS.subject) || '',
     status:      f.Status || '',
     priority:    getF(SP_FIELDS.priority),
     file:        f.Title || '',
@@ -2553,6 +2560,7 @@ function buildFields(d) {
     Title:                      d.file,
     Status:                     d.status,
     [SP_FIELDS.client]:         d.client,
+    [SP_FIELDS.subject]:        d.subject || '',
     [SP_FIELDS.priority]:       d.priority,
     [SP_FIELDS.type]:           d.type,
     [SP_FIELDS.company]:        d.company,
@@ -2869,6 +2877,7 @@ function showDetail(id) {
 
   const el = currentLang === 'el';
   document.getElementById('detail-title').textContent = t.client || '—';
+  document.getElementById('detail-subtitle').textContent = t.subject || '';
   // Εμφάνιση κουμπιού Αναλαμβάνω μόνο αν ο τρέχων δεν είναι ήδη υπεύθυνος
   const takeBtn = document.getElementById('btn-take-over');
   if (takeBtn && currentUser) {
@@ -3839,6 +3848,7 @@ function showEditForm(t) {
   document.getElementById('btn-delete').style.display = 'flex';
   const saveLbl2 = document.getElementById('btn-save-lbl'); if (saveLbl2) saveLbl2.textContent = currentLang === 'el' ? 'Ενημέρωση' : 'Update';
   document.getElementById('f-client').value = t.client || '';
+  document.getElementById('f-subject').value = t.subject || '';
   document.getElementById('f-file').value = t.file || '';
   document.getElementById('f-type').value = t.type || '';
   document.getElementById('f-company').value = t.company || '';
@@ -3859,7 +3869,7 @@ function showEditForm(t) {
 }
 
 function clearForm() {
-  ['f-client','f-file','f-responsible','f-deadline','f-description'].forEach(id => {
+  ['f-client','f-file','f-subject','f-responsible','f-deadline','f-description'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -3885,6 +3895,7 @@ function cancelForm() {
 function getFormData() {
   return {
     client: document.getElementById('f-client').value.trim(),
+    subject: document.getElementById('f-subject').value.trim(),
     file: document.getElementById('f-file').value.trim(),
     type: document.getElementById('f-type').value,
     company: document.getElementById('f-company').value,
