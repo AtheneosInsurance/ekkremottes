@@ -4124,7 +4124,9 @@ async function markEmailTaken(ticket, responsibleName) {
   // Χρειαζόμαστε InternetMessageId για να βρούμε το email μέσω Graph API
   if (!ticket.internetMsgId) return;
 
-  const msgIdFilter = `internetMessageId eq '${ticket.internetMsgId}'`;
+  // Αποκωδικοποίηση URL encoding που μπορεί να υπάρχει στο msgid
+  const decodedMsgId = decodeURIComponent(ticket.internetMsgId);
+  const msgIdFilter = `internetMessageId eq '${decodedMsgId}'`;
   const category = `Ανέλαβε: ${responsibleName}`;
 
   // Βοηθητική: βρίσκει και σημαίνει το email σε ένα mailbox
