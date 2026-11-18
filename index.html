@@ -4131,7 +4131,9 @@ async function markEmailTaken(ticket, responsibleName) {
       'POST',
       { inputIds: [entryIdB64], sourceIdType: 'entryId', targetIdType: 'restId' }
     );
+    console.log('markEmailTaken translateResp:', JSON.stringify(translateResp));
     const graphMsgId = translateResp?.value?.[0]?.targetId;
+    console.log('markEmailTaken graphMsgId:', graphMsgId);
     if (!graphMsgId) return;
 
     const category = `Ανέλαβε: ${responsibleName}`;
