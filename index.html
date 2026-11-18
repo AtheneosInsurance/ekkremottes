@@ -4130,13 +4130,15 @@ async function markEmailTaken(ticket, responsibleName) {
   // Βοηθητική: βρίσκει και σημαίνει το email σε ένα mailbox
   async function markInMailbox(endpoint) {
     try {
-      const resp = await callGraph(
-        `${endpoint}/messages?$filter=${encodeURIComponent(msgIdFilter)}&$select=id,categories`,
-        'GET'
-      );
+      const url = `${endpoint}/messages?$filter=${encodeURIComponent(msgIdFilter)}&$select=id,categories`;
+      console.log('markEmailTaken search URL:', url);
+      const resp = await callGraph(url, 'GET');
+      console.log('markEmailTaken search resp:', JSON.stringify(resp));
       const msg = resp?.value?.[0];
-      if (!msg) return;
+      if (!msg) { console.log('markEmailTaken: message not found'); return; }
+      console.log('markEmailTaken: found msg id:', msg.id, 'categories:', msg.categories);
       await callGraph(`${endpoint}/messages/${msg.id}`, 'PATCH', { categories: [category] });
+      console.log('markEmailTaken: PATCH done');
     } catch(e) {
       console.warn(`markEmailTaken: could not mark in ${endpoint}:`, e.message);
     }
