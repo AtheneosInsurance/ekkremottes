@@ -4113,6 +4113,7 @@ async function markEmailTaken(ticket, responsibleName) {
   const match = rawDesc.match(/outlook:entryid\/([A-F0-9]+)/i);
   if (!match) return;
   const entryId = match[1];
+  console.log('markEmailTaken entryId:', entryId.substring(0, 20) + '...');
 
   try {
     // Μετατροπή EntryID → Graph Message ID
