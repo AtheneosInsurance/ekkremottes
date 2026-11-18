@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18o</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18p</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18o</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18p</div>
     </div>
   </nav>
 
@@ -3856,18 +3856,17 @@ function handleOutlookURLParams() {
 
   // Προσυμπλήρωση πεδίων
   if (from)    document.getElementById('f-client').value = from;
+  // Θέμα email → πεδίο Θέμα εκκρεμότητας
   if (subject) {
-    // Βάλε το subject στην περιγραφή (όχι ξεχωριστό πεδίο τίτλου)
-    const desc = document.getElementById('f-description');
-    let descText = subject ? `Θέμα email: ${subject}\n` : '';
-    if (date) descText += `Ημ/νία email: ${date}\n`;
-    if (emaillink) descText += `\n📧 Email αιτήματος: ${emaillink}`;
-    desc.value = descText.trim();
-  } else if (emaillink) {
+    const subjectEl = document.getElementById('f-subject');
+    if (subjectEl) subjectEl.value = subject;
+  }
+  // Περιγραφή: ημερομηνία + link outlook
+  {
     const desc = document.getElementById('f-description');
     let descText = '';
     if (date) descText += `Ημ/νία email: ${date}\n`;
-    descText += `\n📧 Email αιτήματος: ${emaillink}`;
+    if (emaillink) descText += `📧 Email αιτήματος: ${emaillink}`;
     desc.value = descText.trim();
   }
 
@@ -4093,11 +4092,71 @@ async function takeOverTicket() {
     // Ειδοποίηση κλάδου
     const updated = { ...t, responsible: myName };
     await notifyBranch(updated, 'taken');
+    // Σήμανση email στο Outlook για όλους
+    await markEmailTaken(t, myName);
     notify(`✅ Ανέλαβες την εκκρεμότητα`, 'success');
     showDetail(editingTicketId);
   } catch(e) {
     notify('Σφάλμα ανάληψης: ' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Αναλαμβάνω'; }
+  }
+}
+
+async function markEmailTaken(ticket, responsibleName) {
+  // Ψάχνουμε για outlook:entryid στην περιγραφή
+  if (!ticket.description) return;
+  const match = ticket.description.match(/outlook:entryid\/([A-F0-9]+)/i);
+  if (!match) return;
+  const entryId = match[1];
+
+  try {
+    // Μετατροπή EntryID → Graph Message ID
+    const translateResp = await callGraph(
+      `https://graph.microsoft.com/v1.0/me/translateExchangeIds`,
+      'POST',
+      { inputIds: [entryId], sourceIdType: 'entryId', targetIdType: 'restId' }
+    );
+    const graphMsgId = translateResp?.value?.[0]?.targetId;
+    if (!graphMsgId) return;
+
+    const category = `Ανέλαβε: ${responsibleName}`;
+
+    // Ορισμός category στο email του τρέχοντος χρήστη
+    await callGraph(
+      `https://graph.microsoft.com/v1.0/me/messages/${graphMsgId}`,
+      'PATCH',
+      { categories: [category] }
+    );
+
+    // Ορισμός category για τους υπόλοιπους χρήστες
+    const otherUsers = Object.entries(USERS)
+      .filter(([name]) => {
+        const myName2 = (currentUser?.displayName || '').toLowerCase();
+        return !name.toLowerCase().includes(myName2.split(' ')[0].toLowerCase());
+      });
+
+    for (const [, userObj] of otherUsers) {
+      try {
+        // Μετατροπή EntryID για κάθε χρήστη
+        const tr = await callGraph(
+          `https://graph.microsoft.com/v1.0/users/${userObj.id}/translateExchangeIds`,
+          'POST',
+          { inputIds: [entryId], sourceIdType: 'entryId', targetIdType: 'restId' }
+        );
+        const msgId = tr?.value?.[0]?.targetId;
+        if (!msgId) continue;
+        await callGraph(
+          `https://graph.microsoft.com/v1.0/users/${userObj.id}/messages/${msgId}`,
+          'PATCH',
+          { categories: [category] }
+        );
+      } catch(e) {
+        console.warn(`markEmailTaken: could not mark for user ${userObj.id}:`, e.message);
+      }
+    }
+    console.log(`markEmailTaken: category "${category}" set`);
+  } catch(e) {
+    console.warn('markEmailTaken error (non-blocking):', e.message);
   }
 }
 
