@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18q</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18r</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18q</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18r</div>
     </div>
   </nav>
 
@@ -4108,7 +4108,9 @@ async function takeOverTicket() {
 async function markEmailTaken(ticket, responsibleName) {
   // Ψάχνουμε για outlook:entryid στην περιγραφή
   if (!ticket.description) return;
-  const match = ticket.description.match(/outlook:entryid\/([A-F0-9]+)/i);
+  // Αποκωδικοποίηση HTML entities πριν το regex
+  const rawDesc = ticket.description.replace(/&#58;/g, ':').replace(/&#x3A;/gi, ':');
+  const match = rawDesc.match(/outlook:entryid\/([A-F0-9]+)/i);
   if (!match) return;
   const entryId = match[1];
 
