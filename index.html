@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19d</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19e</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19d</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19e</div>
     </div>
   </nav>
 
@@ -3812,8 +3812,6 @@ async function assignResponsible(id) {
     const idx = tickets.findIndex(x => x.id === id);
     if (idx >= 0) tickets[idx].responsible = name;
     // Σήμανση email στο Outlook
-    const updatedT = { ...t, responsible: name };
-    await markEmailTaken(updatedT, name);
     notify(currentLang === 'el' ? `Ανατέθηκε σε ${name}` : `Assigned to ${name}`, 'success');
     showDetail(id);
     updateBadges();
@@ -4112,57 +4110,11 @@ async function takeOverTicket() {
     // Ειδοποίηση κλάδου
     const updated = { ...t, responsible: myName };
     await notifyBranch(updated, 'taken');
-    // Σήμανση email στο Outlook για όλους
-    await markEmailTaken(t, myName);
     notify(`✅ Ανέλαβες την εκκρεμότητα`, 'success');
     showDetail(editingTicketId);
   } catch(e) {
     notify('Σφάλμα ανάληψης: ' + e.message, 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Αναλαμβάνω'; }
-  }
-}
-
-async function markEmailTaken(ticket, responsibleName) {
-  // Χρειαζόμαστε InternetMessageId για να βρούμε το email μέσω Graph API
-  if (!ticket.internetMsgId) return;
-
-  // Αποκωδικοποίηση URL encoding που μπορεί να υπάρχει στο msgid
-  const decodedMsgId = decodeURIComponent(ticket.internetMsgId);
-  console.log('markEmailTaken raw msgid:', ticket.internetMsgId);
-  console.log('markEmailTaken decoded msgid:', decodedMsgId);
-  const category = `Ανέλαβε: ${responsibleName}`;
-
-  // Βοηθητική: βρίσκει και σημαίνει το email σε ένα mailbox
-  async function markInMailbox(endpoint) {
-    try {
-      // Χτίζουμε το URL χωρίς encodeURIComponent στο filter για να μη διπλο-κωδικοποιηθεί το msgid
-      const url = `${endpoint}/messages?$filter=internetMessageId eq '${decodedMsgId}'&$select=id,categories`;
-      console.log('markEmailTaken search URL:', url);
-      const resp = await callGraph(url, 'GET');
-      console.log('markEmailTaken search resp:', JSON.stringify(resp));
-      const msg = resp?.value?.[0];
-      if (!msg) { console.log('markEmailTaken: message not found'); return; }
-      console.log('markEmailTaken: found msg id:', msg.id, 'categories:', msg.categories);
-      await callGraph(`${endpoint}/messages/${msg.id}`, 'PATCH', { categories: [category] });
-      console.log('markEmailTaken: PATCH done');
-    } catch(e) {
-      console.warn(`markEmailTaken: could not mark in ${endpoint}:`, e.message);
-    }
-  }
-
-  try {
-    // Σήμανση στο mailbox του τρέχοντος χρήστη
-    await markInMailbox('https://graph.microsoft.com/v1.0/me');
-
-    // Σήμανση για τους υπόλοιπους χρήστες
-    const myName2 = (currentUser?.displayName || '').toLowerCase();
-    for (const [name, userObj] of Object.entries(USERS)) {
-      if (name.toLowerCase().includes(myName2.split(' ')[0].toLowerCase())) continue;
-      await markInMailbox(`https://graph.microsoft.com/v1.0/users/${userObj.id}`);
-    }
-    console.log(`markEmailTaken: category "${category}" set`);
-  } catch(e) {
-    console.warn('markEmailTaken error (non-blocking):', e.message);
   }
 }
 
