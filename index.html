@@ -4108,6 +4108,7 @@ async function takeOverTicket() {
 async function markEmailTaken(ticket, responsibleName) {
   // Ψάχνουμε για outlook:entryid στην περιγραφή
   if (!ticket.description) return;
+  console.log('markEmailTaken desc snippet:', ticket.description.substring(0, 200));
   // Αποκωδικοποίηση HTML entities πριν το regex
   const rawDesc = ticket.description.replace(/&#58;/g, ':').replace(/&#x3A;/gi, ':');
   const match = rawDesc.match(/outlook:entryid\/([A-F0-9]+)/i);
@@ -4116,11 +4117,19 @@ async function markEmailTaken(ticket, responsibleName) {
   console.log('markEmailTaken entryId:', entryId.substring(0, 20) + '...');
 
   try {
+    // Μετατροπή hex EntryID → base64 (απαιτείται από translateExchangeIds)
+    function hexToBase64(hex) {
+      const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+      return btoa(String.fromCharCode(...bytes));
+    }
+    const entryIdB64 = hexToBase64(entryId);
+    console.log('markEmailTaken entryIdB64:', entryIdB64.substring(0, 30) + '...');
+
     // Μετατροπή EntryID → Graph Message ID
     const translateResp = await callGraph(
       `https://graph.microsoft.com/v1.0/me/translateExchangeIds`,
       'POST',
-      { inputIds: [entryId], sourceIdType: 'entryId', targetIdType: 'restId' }
+      { inputIds: [entryIdB64], sourceIdType: 'entryId', targetIdType: 'restId' }
     );
     const graphMsgId = translateResp?.value?.[0]?.targetId;
     if (!graphMsgId) return;
@@ -4143,11 +4152,11 @@ async function markEmailTaken(ticket, responsibleName) {
 
     for (const [, userObj] of otherUsers) {
       try {
-        // Μετατροπή EntryID για κάθε χρήστη
+        // Μετατροπή EntryID για κάθε χρήστη (χρήση ίδιου base64)
         const tr = await callGraph(
           `https://graph.microsoft.com/v1.0/users/${userObj.id}/translateExchangeIds`,
           'POST',
-          { inputIds: [entryId], sourceIdType: 'entryId', targetIdType: 'restId' }
+          { inputIds: [entryIdB64], sourceIdType: 'entryId', targetIdType: 'restId' }
         );
         const msgId = tr?.value?.[0]?.targetId;
         if (!msgId) continue;
