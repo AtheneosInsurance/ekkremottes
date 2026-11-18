@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18j</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18k</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18j</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18k</div>
     </div>
   </nav>
 
@@ -2900,11 +2900,20 @@ function showDetail(id) {
   const dc = deadlineClass(t.deadline, t.status);
 
   document.getElementById('detail-main').innerHTML = `
-    ${t.description ? `
     <div style="background:var(--accent-light);border-left:3px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:14px 16px;margin-bottom:24px">
-      <div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px">${el?'Περιγραφή':'Description'}</div>
-      <div style="font-size:14px;line-height:1.6;color:var(--text)">${escHtml(t.description)}</div>
-    </div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent)">${el?'Εξέλιξη / Σημειώσεις':'Notes'}</div>
+        <button onclick="showAddNote('${t.id}')" style="padding:3px 10px;border-radius:var(--radius);border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer">+ Σημείωση</button>
+      </div>
+      <div id="note-form-${t.id}" style="display:none;margin-bottom:12px">
+        <textarea id="note-text-${t.id}" rows="2" placeholder="Γράψε σημείωση..." style="width:100%;border:1px solid var(--border2);border-radius:var(--radius);padding:8px;font-family:var(--font);font-size:13px;resize:vertical;background:var(--surface);color:var(--text)"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button onclick="saveNote('${t.id}')" style="padding:5px 14px;border-radius:var(--radius);border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer">Αποθήκευση</button>
+          <button onclick="document.getElementById('note-form-${t.id}').style.display='none'" style="padding:5px 14px;border-radius:var(--radius);border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:12px;cursor:pointer">Ακύρωση</button>
+        </div>
+      </div>
+      <div style="font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap">${formatNotes(t.description)}</div>
+    </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px">
@@ -3105,6 +3114,56 @@ function showDetail(id) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   setTimeout(() => loadDetailAttachments(id), 100);
   setTimeout(() => loadCommHistory(id), 200);
+}
+
+function formatNotes(description) {
+  if (!description) return '<span style="color:var(--text3);font-style:italic">Καμία σημείωση ακόμα</span>';
+  // Μορφοποίηση γραμμών που ξεκινούν με [ημερομηνία | χρήστης]
+  return escHtml(description).replace(
+    /\[([^\]]+)\]/g,
+    '<span style="font-size:11px;font-weight:600;color:var(--accent);background:rgba(var(--accent-rgb,26,79,138),0.08);padding:1px 6px;border-radius:3px">[$1]</span>'
+  );
+}
+
+function showAddNote(id) {
+  const form = document.getElementById(`note-form-${id}`);
+  if (form) {
+    form.style.display = form.style.display === 'none' ? '' : 'none';
+    if (form.style.display !== 'none') {
+      document.getElementById(`note-text-${id}`)?.focus();
+    }
+  }
+}
+
+async function saveNote(id) {
+  const textarea = document.getElementById(`note-text-${id}`);
+  if (!textarea || !textarea.value.trim()) return;
+  const noteText = textarea.value.trim();
+  const t = tickets.find(x => x.id === id);
+  if (!t) return;
+
+  const userName = currentUser ? (currentUser.displayName || currentUser.givenName || 'Χρήστης') : 'Χρήστης';
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('el-GR', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const timeStr = now.toLocaleTimeString('el-GR', {hour:'2-digit',minute:'2-digit'});
+  const header = `[${dateStr} ${timeStr} | ${userName}]`;
+  const newEntry = `${header}\n${noteText}`;
+  const newDescription = t.description ? `${newEntry}\n---\n${t.description}` : newEntry;
+
+  try {
+    await callGraph(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${listId}/items/${id}/fields`,
+      'PATCH', { [SP_FIELDS.description]: newDescription }
+    );
+    const idx = tickets.findIndex(x => x.id === id);
+    if (idx >= 0) tickets[idx].description = newDescription;
+    textarea.value = '';
+    document.getElementById(`note-form-${id}`).style.display = 'none';
+    notify('✅ Σημείωση αποθηκεύτηκε', 'success');
+    showDetail(id);
+  } catch(e) {
+    notify('Σφάλμα αποθήκευσης: ' + e.message, 'error');
+  }
 }
 
 function editCurrent() {
