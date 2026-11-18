@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19a</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19b</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19a</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19b</div>
     </div>
   </nav>
 
@@ -2397,6 +2397,7 @@ const SP_FIELDS = {
   contactType:       'ContactType',
   contactEmail:      'ContactEmail',
   contactPhone:      'ContactPhone',
+  internetMsgId:     'InternetMsgId',
 };
 
 // Azure AD User IDs for Person field
@@ -2501,6 +2502,7 @@ function mapItem(item) {
     contactType:       getF(SP_FIELDS.contactType) || 'Εσωτερική',
     contactEmail:      getF(SP_FIELDS.contactEmail) || '',
     contactPhone:      getF(SP_FIELDS.contactPhone) || '',
+    internetMsgId:     getF(SP_FIELDS.internetMsgId) || '',
   };
 }
 
@@ -2573,6 +2575,7 @@ function buildFields(d) {
     [SP_FIELDS.contactType]:    d.contactType || 'Εσωτερική',
     [SP_FIELDS.contactEmail]:   d.contactEmail || '',
     [SP_FIELDS.contactPhone]:   d.contactPhone || '',
+    [SP_FIELDS.internetMsgId]:  d.internetMsgId || '',
   };
 }
 
@@ -3850,6 +3853,7 @@ function handleOutlookURLParams() {
   const subject   = params.get('subject');
   const date      = params.get('date');
   const emaillink = params.get('emaillink');
+  const msgid     = params.get('msgid');
 
   if (!from && !subject && !emaillink) return; // Κανονική φόρτωση, όχι από macro
 
@@ -3872,6 +3876,16 @@ function handleOutlookURLParams() {
     if (emaillink) descText += `📧 Email αιτήματος: ${emaillink}`;
     desc.value = descText.trim();
   }
+
+  // Αποθήκευση InternetMessageId σε hidden input
+  let hiddenMsgId = document.getElementById('f-internetmsgid');
+  if (!hiddenMsgId) {
+    hiddenMsgId = document.createElement('input');
+    hiddenMsgId.type = 'hidden';
+    hiddenMsgId.id = 'f-internetmsgid';
+    document.getElementById('f-description').parentNode.appendChild(hiddenMsgId);
+  }
+  hiddenMsgId.value = msgid || '';
 
   // Καθαρισμός URL (αφαίρεση params χωρίς reload)
   const cleanURL = window.location.origin + window.location.pathname;
@@ -3969,9 +3983,10 @@ function getFormData() {
     deadline: document.getElementById('f-deadline').value,
     description: document.getElementById('f-description').value.trim(),
     result: document.getElementById('f-result')?.value || '',
-    contactType:  document.getElementById('f-contact-type').value,
-    contactEmail: document.getElementById('f-contact-email').value.trim(),
-    contactPhone: document.getElementById('f-contact-phone').value.trim(),
+    contactType:    document.getElementById('f-contact-type').value,
+    contactEmail:   document.getElementById('f-contact-email').value.trim(),
+    contactPhone:   document.getElementById('f-contact-phone').value.trim(),
+    internetMsgId:  document.getElementById('f-internetmsgid')?.value || '',
   };
 }
 
@@ -4106,70 +4121,36 @@ async function takeOverTicket() {
 }
 
 async function markEmailTaken(ticket, responsibleName) {
-  // Ψάχνουμε για outlook:entryid στην περιγραφή
-  if (!ticket.description) return;
-  console.log('markEmailTaken desc snippet:', ticket.description.substring(0, 200));
-  // Αποκωδικοποίηση HTML entities πριν το regex
-  const rawDesc = ticket.description.replace(/&#58;/g, ':').replace(/&#x3A;/gi, ':');
-  const match = rawDesc.match(/outlook:entryid\/([A-F0-9]+)/i);
-  if (!match) return;
-  const entryId = match[1];
-  console.log('markEmailTaken entryId:', entryId.substring(0, 20) + '...');
+  // Χρειαζόμαστε InternetMessageId για να βρούμε το email μέσω Graph API
+  if (!ticket.internetMsgId) return;
+
+  const msgIdFilter = `internetMessageId eq '${ticket.internetMsgId}'`;
+  const category = `Ανέλαβε: ${responsibleName}`;
+
+  // Βοηθητική: βρίσκει και σημαίνει το email σε ένα mailbox
+  async function markInMailbox(endpoint) {
+    try {
+      const resp = await callGraph(
+        `${endpoint}/messages?$filter=${encodeURIComponent(msgIdFilter)}&$select=id,categories`,
+        'GET'
+      );
+      const msg = resp?.value?.[0];
+      if (!msg) return;
+      await callGraph(`${endpoint}/messages/${msg.id}`, 'PATCH', { categories: [category] });
+    } catch(e) {
+      console.warn(`markEmailTaken: could not mark in ${endpoint}:`, e.message);
+    }
+  }
 
   try {
-    // Μετατροπή hex EntryID → base64 (απαιτείται από translateExchangeIds)
-    function hexToBase64(hex) {
-      const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
-      return btoa(String.fromCharCode(...bytes));
-    }
-    const entryIdB64 = hexToBase64(entryId);
-    console.log('markEmailTaken entryIdB64:', entryIdB64.substring(0, 30) + '...');
+    // Σήμανση στο mailbox του τρέχοντος χρήστη
+    await markInMailbox('https://graph.microsoft.com/v1.0/me');
 
-    // Μετατροπή EntryID → Graph Message ID
-    const translateResp = await callGraph(
-      `https://graph.microsoft.com/v1.0/me/translateExchangeIds`,
-      'POST',
-      { inputIds: [entryIdB64], sourceIdType: 'entryId', targetIdType: 'restId' }
-    );
-    console.log('markEmailTaken translateResp:', JSON.stringify(translateResp));
-    const graphMsgId = translateResp?.value?.[0]?.targetId;
-    console.log('markEmailTaken graphMsgId:', graphMsgId);
-    if (!graphMsgId) return;
-
-    const category = `Ανέλαβε: ${responsibleName}`;
-
-    // Ορισμός category στο email του τρέχοντος χρήστη
-    await callGraph(
-      `https://graph.microsoft.com/v1.0/me/messages/${graphMsgId}`,
-      'PATCH',
-      { categories: [category] }
-    );
-
-    // Ορισμός category για τους υπόλοιπους χρήστες
-    const otherUsers = Object.entries(USERS)
-      .filter(([name]) => {
-        const myName2 = (currentUser?.displayName || '').toLowerCase();
-        return !name.toLowerCase().includes(myName2.split(' ')[0].toLowerCase());
-      });
-
-    for (const [, userObj] of otherUsers) {
-      try {
-        // Μετατροπή EntryID για κάθε χρήστη (χρήση ίδιου base64)
-        const tr = await callGraph(
-          `https://graph.microsoft.com/v1.0/users/${userObj.id}/translateExchangeIds`,
-          'POST',
-          { inputIds: [entryIdB64], sourceIdType: 'entryId', targetIdType: 'restId' }
-        );
-        const msgId = tr?.value?.[0]?.targetId;
-        if (!msgId) continue;
-        await callGraph(
-          `https://graph.microsoft.com/v1.0/users/${userObj.id}/messages/${msgId}`,
-          'PATCH',
-          { categories: [category] }
-        );
-      } catch(e) {
-        console.warn(`markEmailTaken: could not mark for user ${userObj.id}:`, e.message);
-      }
+    // Σήμανση για τους υπόλοιπους χρήστες
+    const myName2 = (currentUser?.displayName || '').toLowerCase();
+    for (const [name, userObj] of Object.entries(USERS)) {
+      if (name.toLowerCase().includes(myName2.split(' ')[0].toLowerCase())) continue;
+      await markInMailbox(`https://graph.microsoft.com/v1.0/users/${userObj.id}`);
     }
     console.log(`markEmailTaken: category "${category}" set`);
   } catch(e) {
