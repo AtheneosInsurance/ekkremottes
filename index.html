@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18d</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.18e</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18d</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.18e</div>
     </div>
   </nav>
 
@@ -3086,15 +3086,55 @@ function showDetail(id) {
       </button>
     </div>
 
+    <div id="comm-history-panel" style="margin-top:16px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">📨 Ιστορικό Επικοινωνίας</div>
+      <div id="comm-history-list" style="font-size:12px;color:var(--text3)">Φόρτωση...</div>
+    </div>
+
   `;
 
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   setTimeout(() => loadDetailAttachments(id), 100);
+  setTimeout(() => loadCommHistory(id), 200);
 }
 
 function editCurrent() {
   const t = tickets.find(x => x.id === editingTicketId);
   if (t) showEditForm(t);
+}
+
+async function loadCommHistory(ticketId) {
+  const listEl = document.getElementById('comm-history-list');
+  if (!listEl || !settingsCommsListId) return;
+  try {
+    const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${settingsCommsListId}/items?$expand=fields&$filter=fields/Title eq '${ticketId}'&$orderby=fields/SentAt desc&$top=20`;
+    const data = await callGraph(url);
+    const items = (data.value || []);
+    if (!items.length) {
+      listEl.innerHTML = '<span style="color:var(--text3);font-style:italic">Καμία επικοινωνία</span>';
+      return;
+    }
+    const eventLabels = { 'new': 'Νέα εκκρεμότητα', 'taken': 'Ανάληψη', 'opening': 'Άνοιγμα', 'update': 'Ενημέρωση', 'completion': 'Ολοκλήρωση' };
+    listEl.innerHTML = items.map(item => {
+      const f = item.fields || {};
+      const eventType = f.EventType || '';
+      const sentAt = f.SentAt ? new Date(f.SentAt).toLocaleString('el-GR', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+      const sentBy = f.SentBy || '';
+      const to = f.Recipient || '';
+      const label = eventLabels[eventType] || eventType;
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:600;color:var(--text);font-size:12px">${label}</span>
+          <span style="font-size:11px;color:var(--text3)">${sentAt}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">→ ${to}</div>
+        ${sentBy ? `<div style="font-size:11px;color:var(--text3)">από ${sentBy}</div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    if (listEl) listEl.innerHTML = '<span style="color:var(--text3);font-style:italic">—</span>';
+    console.warn('loadCommHistory error:', e.message);
+  }
 }
 
 
