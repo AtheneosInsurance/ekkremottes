@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19i</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19j</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19i</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19j</div>
     </div>
   </nav>
 
@@ -1131,7 +1131,7 @@
           </div>
           <div class="form-group">
             <label data-el="lbl-agent">Agent / Συνεργάτης</label>
-            <select class="form-select" id="f-agent">
+            <select class="form-select" id="f-agent" onchange="onAgentChange()">
               <option value="">— Επιλέξτε —</option>
             </select>
           </div>
@@ -1411,8 +1411,14 @@
       <div style="background:var(--surface);border-radius:var(--radius-lg);padding:24px;width:360px;box-shadow:var(--shadow-md)">
         <h3 id="modal-add-setting-title" style="font-size:15px;font-weight:600;margin-bottom:16px"></h3>
         <input id="modal-add-setting-input" type="text" placeholder="Εισάγετε τιμή..."
-          style="width:100%;box-sizing:border-box;border:1px solid var(--border2);border-radius:var(--radius);padding:9px 12px;font-family:var(--font);font-size:13px;color:var(--text);background:var(--surface);outline:none;margin-bottom:16px"
+          style="width:100%;box-sizing:border-box;border:1px solid var(--border2);border-radius:var(--radius);padding:9px 12px;font-family:var(--font);font-size:13px;color:var(--text);background:var(--surface);outline:none;margin-bottom:10px"
           onkeydown="if(event.key==='Enter')confirmAddSettingItem()">
+        <div id="modal-agent-emails" style="display:none;margin-bottom:10px">
+          <input id="modal-agent-email-input" type="email" placeholder="Email Συνεργάτη (AgentEmail)"
+            style="width:100%;box-sizing:border-box;border:1px solid var(--border2);border-radius:var(--radius);padding:9px 12px;font-family:var(--font);font-size:13px;color:var(--text);background:var(--surface);outline:none;margin-bottom:6px">
+          <input id="modal-client-email-input" type="email" placeholder="Email Πελάτη (ClientEmail)"
+            style="width:100%;box-sizing:border-box;border:1px solid var(--border2);border-radius:var(--radius);padding:9px 12px;font-family:var(--font);font-size:13px;color:var(--text);background:var(--surface);outline:none">
+        </div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button onclick="document.getElementById('modal-add-setting').style.display='none'"
             style="padding:8px 14px;border-radius:var(--radius);font-family:var(--font);font-size:13px;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2)">Ακύρωση</button>
@@ -2018,14 +2024,14 @@ async function fetchSettingsItems() {
   );
   settingsCache = { types: [], companies: [], branches: [], agents: [] };
   (data.value || []).forEach(item => {
-    // Το Category field μπορεί να έχει διαφορετικό internal name — δοκιμάζουμε και τα δύο
     const cat = (item.fields.Category || item.fields.Category0 || item.fields['Category_x0020_'] || '').toLowerCase().trim();
-    console.log('[Settings] id:', item.id, 'cat:', cat, 'fields:', JSON.stringify(item.fields));
     if (settingsCache[cat] !== undefined) {
       settingsCache[cat].push({
         id: item.id,
         value: item.fields.Value || item.fields.Title || '',
-        sortOrder: item.fields.SortOrder || 0
+        sortOrder: item.fields.SortOrder || 0,
+        agentEmail:  item.fields.AgentEmail  || '',
+        clientEmail: item.fields.ClientEmail || '',
       });
     }
   });
@@ -2211,8 +2217,16 @@ function renderSettingsTables() {
     }
     el.innerHTML = items.map(item => `
       <div style="display:flex;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);gap:6px" data-id="${item.id}">
-        <span style="flex:1;font-size:13px;color:var(--text)">${item.value}</span>
-        <button onclick="editSettingItem('${cat}','${item.id}','${item.value.replace(/'/g,"&#39;")}')" title="Μετονομασία"
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text)">${item.value}</div>
+          ${cat === 'agents' ? `
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">
+              ${item.agentEmail  ? `👤 ${item.agentEmail}` : ''}
+              ${item.agentEmail && item.clientEmail ? ' &nbsp;|&nbsp; ' : ''}
+              ${item.clientEmail ? `🏢 ${item.clientEmail}` : ''}
+            </div>` : ''}
+        </div>
+        <button onclick="editSettingItem('${cat}','${item.id}','${item.value.replace(/'/g,"&#39;")}','${(item.agentEmail||'').replace(/'/g,"&#39;")}','${(item.clientEmail||'').replace(/'/g,"&#39;")}')" title="Επεξεργασία"
           style="width:22px;height:22px;border-radius:var(--radius);border:none;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0"
           onmouseover="this.style.background='var(--surface2)';this.style.color='var(--accent)'"
           onmouseout="this.style.background='transparent';this.style.color='var(--text3)'">✏️</button>
@@ -2232,14 +2246,20 @@ function addSettingItem(cat) {
   const titleEl = document.getElementById('modal-add-setting-title');
   const confirmBtn = document.getElementById('modal-add-setting-confirm');
   const input = document.getElementById('modal-add-setting-input');
+  const emailDiv = document.getElementById('modal-agent-emails');
   titleEl.textContent = `Προσθήκη — ${CATEGORY_LABELS[cat]}`;
   if (confirmBtn) confirmBtn.textContent = 'Προσθήκη';
   input.value = '';
+  if (emailDiv) {
+    emailDiv.style.display = cat === 'agents' ? '' : 'none';
+    document.getElementById('modal-agent-email-input').value = '';
+    document.getElementById('modal-client-email-input').value = '';
+  }
   modal.style.display = 'flex';
   setTimeout(() => input.focus(), 50);
 }
 
-function editSettingItem(cat, id, currentValue) {
+function editSettingItem(cat, id, currentValue, agentEmail='', clientEmail='') {
   _editingCategory = cat;
   _editingId = String(id);
   _addingCategory = null;
@@ -2247,9 +2267,15 @@ function editSettingItem(cat, id, currentValue) {
   const titleEl = document.getElementById('modal-add-setting-title');
   const confirmBtn = document.getElementById('modal-add-setting-confirm');
   const input = document.getElementById('modal-add-setting-input');
-  titleEl.textContent = `Μετονομασία — ${CATEGORY_LABELS[cat]}`;
+  const emailDiv = document.getElementById('modal-agent-emails');
+  titleEl.textContent = `Επεξεργασία — ${CATEGORY_LABELS[cat]}`;
   if (confirmBtn) confirmBtn.textContent = 'Αποθήκευση';
   input.value = currentValue;
+  if (emailDiv) {
+    emailDiv.style.display = cat === 'agents' ? '' : 'none';
+    document.getElementById('modal-agent-email-input').value = agentEmail;
+    document.getElementById('modal-client-email-input').value = clientEmail;
+  }
   modal.style.display = 'flex';
   setTimeout(() => { input.focus(); input.select(); }, 50);
 }
@@ -2258,6 +2284,8 @@ async function confirmAddSettingItem() {
   const input = document.getElementById('modal-add-setting-input');
   const value = (input.value || '').trim();
   if (!value) return;
+  const agentEmail  = (document.getElementById('modal-agent-email-input')?.value || '').trim();
+  const clientEmail = (document.getElementById('modal-client-email-input')?.value || '').trim();
   document.getElementById('modal-add-setting').style.display = 'none';
 
   // ── EDIT mode ──────────────────────────────────────────
@@ -2265,17 +2293,18 @@ async function confirmAddSettingItem() {
     const cat = _editingCategory;
     const idStr = _editingId;
     const item = settingsCache[cat].find(x => String(x.id) === idStr);
-    if (item) item.value = value;
+    if (item) { item.value = value; item.agentEmail = agentEmail; item.clientEmail = clientEmail; }
     settingsCache[cat].sort((a,b) => a.value.localeCompare(b.value,'el'));
     renderSettingsTables();
     populateAllDropdowns();
 
     if (idStr !== 'null' && settingsListId) {
       try {
+        const fields = { Title: value, Value: value };
+        if (cat === 'agents') { fields.AgentEmail = agentEmail; fields.ClientEmail = clientEmail; }
         await callGraph(
           `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${settingsListId}/items/${idStr}`,
-          'PATCH',
-          { fields: { Title: value, Value: value } }
+          'PATCH', { fields }
         );
       } catch (e) {
         console.error('editSettingItem error:', e);
@@ -2294,16 +2323,17 @@ async function confirmAddSettingItem() {
   const cat = _addingCategory;
   const sortOrder = settingsCache[cat].length;
 
-  settingsCache[cat].push({ id: null, value, sortOrder });
+  settingsCache[cat].push({ id: null, value, sortOrder, agentEmail, clientEmail });
   renderSettingsTables();
   populateAllDropdowns();
 
   if (settingsListId) {
     try {
+      const fields = { Title: value, Category: cat, Value: value, SortOrder: sortOrder };
+      if (cat === 'agents') { fields.AgentEmail = agentEmail; fields.ClientEmail = clientEmail; }
       const res = await callGraph(
         `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${settingsListId}/items`,
-        'POST',
-        { fields: { Title: value, Category: cat, Value: value, SortOrder: sortOrder } }
+        'POST', { fields }
       );
       const item = settingsCache[cat].find(x => x.value === value && x.id === null);
       if (item) item.id = res.id;
@@ -2504,7 +2534,8 @@ function mapItem(item) {
     contactType:       getF(SP_FIELDS.contactType) || 'Εσωτερική',
     contactEmail:      getF(SP_FIELDS.contactEmail) || '',
     contactPhone:      getF(SP_FIELDS.contactPhone) || '',
-    internetMsgId:     getF(SP_FIELDS.internetMsgId) || '',
+    internetMsgId:     (() => { const v = getF(SP_FIELDS.internetMsgId) || ''; return v.includes('||') ? v.split('||')[0] : v; })(),
+    emailLink:         (() => { const v = getF(SP_FIELDS.internetMsgId) || ''; return v.includes('||') ? v.split('||').slice(1).join('||') : ''; })(),
   };
 }
 
@@ -2716,11 +2747,33 @@ function filterType(type) {
   renderTable(filteredTickets);
 }
 
+function onAgentChange() {
+  const type = document.getElementById('f-contact-type').value;
+  if (type === 'Συνεργάτης') {
+    const agentVal = document.getElementById('f-agent').value;
+    const agentObj = settingsCache.agents.find(a => a.value === agentVal);
+    const emailEl = document.getElementById('f-contact-email');
+    if (agentObj?.agentEmail && emailEl) emailEl.value = agentObj.agentEmail;
+  }
+}
+
 function toggleContactFields() {
   const type = document.getElementById('f-contact-type').value;
   const show = type === 'Πελάτης' || type === 'Συνεργάτης';
   document.getElementById('contact-email-group').style.display = show ? '' : 'none';
   document.getElementById('contact-phone-group').style.display = show ? '' : 'none';
+
+  // Αν επιλεγεί Συνεργάτης, παίρνουμε AgentEmail από τον επιλεγμένο agent
+  if (type === 'Συνεργάτης') {
+    const agentVal = document.getElementById('f-agent').value;
+    if (agentVal) {
+      const agentObj = settingsCache.agents.find(a => a.value === agentVal);
+      const emailEl = document.getElementById('f-contact-email');
+      if (agentObj?.agentEmail && emailEl && !emailEl.value) {
+        emailEl.value = agentObj.agentEmail;
+      }
+    }
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -2918,6 +2971,14 @@ function showDetail(id) {
         </div>
       </div>
       <div style="font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap">${formatNotes(t.description)}</div>
+      ${t.emailLink ? `
+      <div style="margin-top:10px">
+        <a href="${escHtml(t.emailLink)}" style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--radius);border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:11px;font-weight:600;cursor:pointer;text-decoration:none"
+          onclick="event.preventDefault();window.location.href='${escHtml(t.emailLink)}'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          Άνοιγμα Email
+        </a>
+      </div>` : ''}
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">
@@ -3887,16 +3948,13 @@ function handleOutlookURLParams() {
     const subjectEl = document.getElementById('f-subject');
     if (subjectEl) subjectEl.value = subject;
   }
-  // Περιγραφή: ημερομηνία + link outlook
+  // Περιγραφή: μόνο ημερομηνία (όχι entryid)
   {
     const desc = document.getElementById('f-description');
-    let descText = '';
-    if (date) descText += `Ημ/νία email: ${date}\n`;
-    if (emaillink) descText += `📧 Email αιτήματος: ${emaillink}`;
-    desc.value = descText.trim();
+    desc.value = date ? `Ημ/νία email: ${date}` : '';
   }
 
-  // Αποθήκευση InternetMessageId σε hidden input
+  // Αποθήκευση InternetMessageId και emaillink σε hidden inputs
   let hiddenMsgId = document.getElementById('f-internetmsgid');
   if (!hiddenMsgId) {
     hiddenMsgId = document.createElement('input');
@@ -3905,6 +3963,25 @@ function handleOutlookURLParams() {
     document.getElementById('f-description').parentNode.appendChild(hiddenMsgId);
   }
   hiddenMsgId.value = msgid || '';
+
+  let hiddenEmailLink = document.getElementById('f-emaillink');
+  if (!hiddenEmailLink) {
+    hiddenEmailLink = document.createElement('input');
+    hiddenEmailLink.type = 'hidden';
+    hiddenEmailLink.id = 'f-emaillink';
+    document.getElementById('f-description').parentNode.appendChild(hiddenEmailLink);
+  }
+  hiddenEmailLink.value = emaillink || '';
+
+  // Αυτόματο ContactEmail από email αποστολέα (αν δεν υπάρχει ήδη)
+  if (from) {
+    const emailMatch = from.match(/<([^>]+)>/);
+    const senderEmail = emailMatch ? emailMatch[1] : (from.includes('@') ? from : '');
+    if (senderEmail) {
+      const contactEmailEl = document.getElementById('f-contact-email');
+      if (contactEmailEl && !contactEmailEl.value) contactEmailEl.value = senderEmail;
+    }
+  }
 
   // Καθαρισμός URL (αφαίρεση params χωρίς reload)
   const cleanURL = window.location.origin + window.location.pathname;
@@ -4005,7 +4082,11 @@ function getFormData() {
     contactType:    document.getElementById('f-contact-type').value,
     contactEmail:   document.getElementById('f-contact-email').value.trim(),
     contactPhone:   document.getElementById('f-contact-phone').value.trim(),
-    internetMsgId:  document.getElementById('f-internetmsgid')?.value || '',
+    internetMsgId:  (() => {
+      const mid = document.getElementById('f-internetmsgid')?.value || '';
+      const elink = document.getElementById('f-emaillink')?.value || '';
+      return elink ? `${mid}||${elink}` : mid;
+    })(),
   };
 }
 
