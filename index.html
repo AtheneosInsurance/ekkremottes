@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19g</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19h</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19g</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19h</div>
     </div>
   </nav>
 
@@ -3123,8 +3123,10 @@ function showDetail(id) {
 
 function formatNotes(description) {
   if (!description) return '<span style="color:var(--text3);font-style:italic">Καμία σημείωση ακόμα</span>';
-  // Αφαίρεση --- διαχωριστικών και περιττών κενών γραμμών
-  const cleaned = description.replace(/\n?---\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  // Αποκωδικοποίηση HTML entities και αφαίρεση --- διαχωριστικών
+  const cleaned = description
+    .replace(/&#58;/g, ':').replace(/&#x3A;/gi, ':')
+    .replace(/\n?---\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
   // Μορφοποίηση γραμμών που ξεκινούν με [ημερομηνία | χρήστης]
   return escHtml(cleaned).replace(
     /\[([^\]]+)\]/g,
@@ -3152,7 +3154,9 @@ async function saveNote(id) {
   const userName = currentUser ? (currentUser.displayName || currentUser.givenName || 'Χρήστης') : 'Χρήστης';
   const now = new Date();
   const dateStr = now.toLocaleDateString('el-GR', {day:'2-digit',month:'2-digit',year:'numeric'});
-  const timeStr = now.toLocaleTimeString('el-GR', {hour:'2-digit',minute:'2-digit'});
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const timeStr = `${hh}:${mm}`;
   const header = `[${dateStr} ${timeStr} | ${userName}]`;
   const newEntry = `${header} ${noteText}`;
   const newDescription = t.description ? `${newEntry}\n---\n${t.description}` : newEntry;
@@ -3759,6 +3763,7 @@ function stripNoteUser(description) {
   if (!description) return '';
   // Αφαίρεση ονόματος χρήστη από headers και --- διαχωριστικών
   return description
+    .replace(/&#58;/g, ':').replace(/&#x3A;/gi, ':')
     .replace(/\[([^\]|]+)\s*\|[^\]]*\]/g, '[$1]')
     .replace(/\n?---\n?/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
