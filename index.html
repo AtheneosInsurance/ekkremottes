@@ -824,7 +824,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="text" id="global-search" placeholder="Αναζήτηση εκκρεμότητας..." oninput="globalSearch(this.value)">
   </div>
-  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.19k</div>
+  <div style="font-size:10px;color:rgba(255,255,255,0.45);font-family:var(--font-mono);letter-spacing:0.03em;white-space:nowrap">v2026.11.21a</div>
   <div class="lang-toggle">
     <button class="active" onclick="setLang('el',this)">ΕΛ</button>
     <button onclick="setLang('en',this)">EN</button>
@@ -907,7 +907,7 @@
           <span>Settings</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.19k</div>
+      <div style="font-size:10px;color:var(--text3);text-align:right;margin-top:6px;font-family:var(--font-mono);opacity:0.6">v2026.11.21a</div>
     </div>
   </nav>
 
@@ -1569,7 +1569,7 @@ const LABELS = {
     'list-title':'Εκκρεμότητες','clear-filters':'Καθαρισμός',
     'th-id':'#','th-client':'Πελάτης','th-type':'Τύπος','th-company':'Εταιρεία',
     'th-branch':'Κλάδος','th-status':'Status','th-priority':'Priority',
-    'th-responsible':'Υπεύθυνος','th-deadline':'Deadline','th-file':'Φάκελος',
+    'th-responsible':'Υπεύθυνος','th-deadline':'Προθεσμία','th-file':'Φάκελος',
     'btn-edit':'Επεξεργασία','panel-by-type':'Ανά Τύπο','panel-by-company':'Ανά Εταιρεία',
     'panel-recent':'Πρόσφατες Εκκρεμότητες',
     'stat-total':'Σύνολο','stat-total-sub':'εκκρεμότητες','stat-overdue':'Ληξιπρόθεσμες',
@@ -1581,7 +1581,7 @@ const LABELS = {
     'lbl-client':'Πελάτης','lbl-file':'Αρ. Φακέλου','lbl-type':'Τύπος Εκκρεμότητας',
     'lbl-company':'Εταιρεία','lbl-branch':'Κλάδος','lbl-agent':'Agent / Συνεργάτης',
     'lbl-status':'Status','lbl-priority':'Προτεραιότητα','lbl-responsible':'Υπεύθυνος',
-    'lbl-deadline':'Deadline','lbl-description':'Περιγραφή',
+    'lbl-deadline':'Προθεσμία','lbl-description':'Περιγραφή',
     'upload-main':'Κάντε κλικ ή σύρετε αρχεία εδώ',
     'upload-sub':'Υποστηρίζονται: PDF, Word, Excel, εικόνες',
     'btn-delete':'Διαγραφή','btn-cancel':'Ακύρωση','btn-save':'Αποθήκευση',
@@ -3099,7 +3099,7 @@ function showDetail(id) {
           ${priorityBadge(t.priority)}
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:12px;color:var(--text3)">Deadline</span>
+          <span style="font-size:12px;color:var(--text3)">${el?'Προθεσμία':'Deadline'}</span>
           <span style="font-size:13px;font-weight:600" class="${dc}">${fmtDate(t.deadline)}</span>
         </div>
       </div>
@@ -3775,7 +3775,7 @@ function buildEmailBody(action, t, el, recipientType) {
         ${t.client  ? `<tr><td style="padding:10px 16px;color:#666;font-weight:600;border-bottom:1px solid #e2e6ef">${el?'Πελάτης':'Client'}</td><td style="padding:10px 16px;color:#222;border-bottom:1px solid #e2e6ef">${escHtmlPlain(t.client)}</td></tr>` : ''}
         ${t.company ? `<tr><td style="padding:10px 16px;color:#666;font-weight:600;border-bottom:1px solid #e2e6ef">${el?'Εταιρεία':'Company'}</td><td style="padding:10px 16px;color:#222;border-bottom:1px solid #e2e6ef">${escHtmlPlain(t.company)}</td></tr>` : ''}
         ${t.branch  ? `<tr><td style="padding:10px 16px;color:#666;font-weight:600;border-bottom:1px solid #e2e6ef">${el?'Κλάδος':'Branch'}</td><td style="padding:10px 16px;color:#222;border-bottom:1px solid #e2e6ef">${escHtmlPlain(t.branch)}</td></tr>` : ''}
-        ${t.deadline? `<tr><td style="padding:10px 16px;color:#666;font-weight:600;border-bottom:1px solid #e2e6ef">Deadline</td><td style="padding:10px 16px;color:#222;border-bottom:1px solid #e2e6ef">${fmtDate(t.deadline)}</td></tr>` : ''}
+        ${t.deadline? `<tr><td style="padding:10px 16px;color:#666;font-weight:600;border-bottom:1px solid #e2e6ef">${el?'Προθεσμία':'Deadline'}</td><td style="padding:10px 16px;color:#222;border-bottom:1px solid #e2e6ef">${fmtDate(t.deadline)}</td></tr>` : ''}
         ${t.subject ? `<tr><td style="padding:10px 16px;color:#666;font-weight:600;border-bottom:1px solid #e2e6ef;vertical-align:top">${el?'Θέμα':'Subject'}</td><td style="padding:10px 16px;color:#222;border-bottom:1px solid #e2e6ef;font-weight:600">${escHtmlPlain(t.subject)}</td></tr>` : ''}
         ${t.description ? `<tr><td style="padding:10px 16px;color:#666;font-weight:600;vertical-align:top">${el?'Σημειώσεις':'Notes'}</td><td style="padding:10px 16px;color:#222;line-height:1.7">${escHtmlPlain(stripNoteUser(t.description)).replace(/\n/g,'<br>')}</td></tr>` : ''}
       </table>
@@ -4459,7 +4459,7 @@ function updateBadges() {
 // EXPORT CSV
 // ══════════════════════════════════════════════
 function exportCSV() {
-  const headers = ['ID','Πελάτης','Τύπος','Εταιρεία','Κλάδος','Status','Priority','Υπεύθυνος','Agent','Φάκελος','Deadline','Περιγραφή'];
+  const headers = ['ID','Πελάτης','Τύπος','Εταιρεία','Κλάδος','Status','Priority','Υπεύθυνος','Agent','Φάκελος','Προθεσμία','Περιγραφή'];
   const rows = tickets.map(t => [t.id, t.client, t.type, t.company, t.branch, t.status, t.priority, t.responsible, t.agent, t.file, t.deadline, t.description]);
   const csv = [headers, ...rows].map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
